@@ -19,6 +19,30 @@ class Radiance_Map:
             rm.coeff[i] = rm.get_coeff(i)
         return rm.coeff
     
+    def derivation_coeff(rm,n,p,q):
+        # (a - b)**2
+        # (a - b) * (a - b)'
+        M_pq = rm.M[p][q]
+        M_pq1 = rm.M[p][q+1]
+        R_qq1 = rm.R_est_list[q]
+        
+        # compute a and b
+        a = 0
+        b = 0
+        for n in range(rm.degree):
+            a += rm.coeff[n] * M_pq**n
+            b += rm.coeff[n] * M_pq**n
+        
+        b *= R_qq1
+        
+        temp1 = a - b
+        temp2 = M_pq**n -  R_qq1 * M_pq1**n
+        
+        # MATRIX
+            
+            
+            
+        
     def get_coeff(rm,n):
         
         # f(1) = I_max
@@ -26,11 +50,11 @@ class Radiance_Map:
             return rm.I_max - sum(rm.coeff[:-1])
         
         else:
+            sum = 0
             for q in range(rm.Q):
                 for p in range(rm.P):
-                    (rm.M[p][q] **n-1) * n
-                    # TODO
-            return 
+                    sum += rm.derivation_coeff(n,q,p)
+            return sum
 
 
     def update_R_est(rm):
