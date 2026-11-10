@@ -1,3 +1,5 @@
+import numpy as np
+
 EPSILON = 1e-6
 
 class Radiance_Map:
@@ -14,47 +16,61 @@ class Radiance_Map:
         rm.res_curr = None
 
 
-    def update_coeff(rm):
-        for i in range(rm.degree):
-            rm.coeff[i] = rm.get_coeff(i)
-        return rm.coeff
     
-    def derivation_coeff(rm,n,p,q):
-        # (a - b)**2
-        # (a - b) * (a - b)'
-        M_pq = rm.M[p][q]
-        M_pq1 = rm.M[p][q+1]
-        R_qq1 = rm.R_est_list[q]
-        
-        # compute a and b
-        a = 0
-        b = 0
-        for n in range(rm.degree):
-            a += rm.coeff[n] * M_pq**n
-            b += rm.coeff[n] * M_pq**n
-        
-        b *= R_qq1
-        
-        temp1 = a - b
-        temp2 = M_pq**n -  R_qq1 * M_pq1**n
-        
-        # MATRIX
-            
-            
-            
-        
-    def get_coeff(rm,n):
+    def derivation_coeff(rm,n):
         
         # f(1) = I_max
-        if n - 1 is rm.degree - 1:
-            return rm.I_max - sum(rm.coeff[:-1])
+        # eliminate c_N
+
+        # A: precompute M_pq^n - R_q,q+1 * M_pq^n
+        A = []
+        for q in range(rm.Q-1):
+            A.append([])
+            R_qq1 = rm.R_est_list[q]
+            for p in range(rm.P):
+                A[q].append([])
+                M_pq = rm.M[p][q]
+                M_pq1 = rm.M[p][q+1]
+                for m in range(rm.degree + 1):
+                    temp = M_pq**m - R_qq1 * M_pq1**m
+                    A[q][p].append(temp)
         
-        else:
-            sum = 0
-            for q in range(rm.Q):
+        # E = sum_m c_m * A_pqm + I_max (M_pq^N - R_qq1 * M_pq1**N)
+        # deriv(E_sum_of_sq,c_n) = sum_p sum_q (E * A_pqn)
+        #                        = sum_p sum_q  sum_m c_m * A_qpm * A_qpn
+        #                        = sum_m c_m * (sum_q sum_p A_qpm * A_qpn)
+        # Im dying here
+        # B: sum_p sum_q A_pqm * A_pqn
+        # record the coefficients of all cn
+        L_n = []  
+        for m in range(rm.degree):
+            tot = 0
+            for q in range(rm.Q-1):
                 for p in range(rm.P):
-                    sum += rm.derivation_coeff(n,q,p)
-            return sum
+                    tot += (A[q][p][m]-A[q][p][rm.degree])  * A[q][p][n]
+            L_n.append(tot)
+        
+        R_n = 0  
+        for q in range(rm.Q-1):
+            for p in range(rm.P):
+                R_n += - rm.I_max * A[q][p][n] * A[q][p][rm.degree]
+                
+        return L_n, R_n
+            
+        
+    def update_coeff(rm):
+        # L C = R
+        L = []
+        R = []
+        for n in range(rm.degree):
+            L_n, R_n = rm.derivation_coeff(n)
+            L.append(L_n) 
+            R.append(R_n)
+        
+        C = np.linalg.solve(L, R)
+        c_N = rm.I_max - np.sum(C)
+        rm.coeff = list(C) + [c_N]
+
 
 
     def update_R_est(rm):
