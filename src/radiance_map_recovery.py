@@ -1,21 +1,21 @@
 import numpy as np
-
+import math
 EPSILON_R = 1e-6
-EPSILON_F = 1e-6
 LIMIT_F = 10
 LIMIT_R = 10
 
 class Radiance_Map:
     def __init__(rm,Image, R_est_list):
-        rm.R_est_list = R_est_list # check len of R_est_list
+        rm.R_est_list_orig = R_est_list.copy() # check len of R_est_list
+        rm.R_est_list = R_est_list.copy() # check len of R_est_list
         rm.R_est_list_prev = None
         rm.degree = 1
         rm.coeff = []
-        rm.coeff_prev = None
         rm.I_max = 0 # recover I_max
-        rm.Q = 0
-        rm.P = 0
-        rm.M = Image
+        rm.M = Image.copy()
+        rm.Q = rm.M.shape[1]
+        rm.P = rm.M.shape[0]
+        rm.final_degree = 1
 
 
     
@@ -56,7 +56,6 @@ class Radiance_Map:
             
         
     def update_coeff(rm):
-        rm.coeff_prev = rm.coeff.copy() 
         # L C = R
         L = []
         R = []
@@ -84,31 +83,23 @@ class Radiance_Map:
                 res += num/den
             rm.R_est_list[q] = res
            
-    def Func_converged(rm) -> bool:
-        # prev has rm.degree - 1
-        if rm.res_prev is None or rm.coeff_prev is None:
-            return False
+    def compute_error(rm):
+        err = 0
         
-        diff = []
-        
-        for p in range(rm.P):
-            for q in range(rm.Q-1):
-                res_curr = 0
-                res_prev = 0
-                for n in range(rm.degree+1):
-                    res_curr += rm.coeff[n] * rm.M[p][q] ** n
-                for n in range(rm.degree):
-                    res_prev += rm.coeff_prev[n] * rm.M[p][q] ** n
-                diff.append(abs(res_curr - res_prev))
-                
-        if max(diff) < EPSILON_F:
-            return True
-        else:
-            return False
+        for q in range(rm.Q-1):
+            for p in range(rm.P):
+                tot = 0
+                M_pq = rm.M[p][q]
+                M_pq1 = rm.M[p][q+1]
+                R_qq1 = rm.R_est_list[q]
+                for n in range(rm.degree + 1):
+                    tot += rm.coeff[n] * (M_pq**n - R_qq1 * M_pq1**n)
+                err += tot**2
+        return err
         
         
     def new_iteration(rm):
-        rm.res_prev = rm.res_curr
+        rm.R_est_list_prev = None
         rm.degree += 1
 
     def R_is_converged(rm):
@@ -117,24 +108,47 @@ class Radiance_Map:
         
         errors = [abs(rm.R_est_list_prev[i]-rm.R_est_list[i]) for i in range(rm.Q-1)]
         
-        rm.R_est_list_prev = rm.R_est_list 
+        rm.R_est_list_prev = rm.R_est_list.copy()
         return max(errors) < EPSILON_R
+
+    def choose_best(rm):
+        min_ = min(rm.errors)
+        for i in range(1,LIMIT_F+1):
+            if rm.errors[i] <= min_:
+                return i
+        return -1
+            
 
     # order of images in increasing exposure
     # M: brightness measurement
     # p: pixel index
     # q: exposure index
     def radiance_map_recovery(rm):
-        while rm.degree < rm.limit:
+        rm.errors = [float('inf') for _ in range(LIMIT_F+1)]
+        rm.coeff_final = [[] for i in range(LIMIT_F+1)]
+        rm.Rs = [[] for i in range(LIMIT_F+1)]
+        while rm.degree <= LIMIT_F:
+            rm.R_est_list = rm.R_est_list_orig.copy()
+            #polynomial degree
             rm.coeff = [0 for i in range(rm.degree+1)]
-            while True:
+            for _ in range(LIMIT_R):
+                # r est coeff computation loop
                 rm.update_coeff()
                 rm.update_R_est()
                 if rm.R_is_converged():
+                    rm.errors[rm.degree] = rm.compute_error()
+                    rm.coeff_final[rm.degree] = rm.coeff.copy()  
+                    rm.Rs[rm.degree] = rm.R_est_list.copy() 
                     break
-                
-            if rm.Func_converged():
-                break
-                    
+                   
             rm.new_iteration()
-        return rm.degree, rm.coeff
+        rm.final_degree = rm.choose_best()
+        if rm.final_degree == -1:
+            print("No degree converged")
+            return False
+        else:
+            print(f"Degree {rm.final_degree} has been chosen.")
+        
+    
+    def plot_response_function(rm):
+        # plot rm.coeff_final[rm.final_degree]
