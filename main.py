@@ -5,7 +5,7 @@ from PIL import Image as PILImage
 import time
 import csv
 from fractions import Fraction
-
+from pathlib import Path
 def get_exposure_ratios(csv_path):
     with open(csv_path, 'r') as file:
         reader = csv.reader(file)
@@ -66,8 +66,13 @@ def main(folder, custom: bool = False, file_csv: str = ""):
     print(f"Calibration took {t_calib - t_load:.2f} s")
     print(f"Total (load + calibration): {t_calib - t_start:.2f} s")
 
+    output_dir = Path("outputs") / Path(folder).name
+    output_dir.mkdir(parents=True, exist_ok=True)
     # plotted last, so the time you spend looking at the window isn't counted
-    radmap.plot_response_function()
+    radmap.plot_response_function( output_dir / "response_final.png")
+
+    # Save coefficients and exposure ratios
+    radmap.save_results( output_dir / "coefficients.csv",t_calib - t_start)
 
     return
 
@@ -82,8 +87,16 @@ if __name__ == "__main__":
     parser.add_argument("--csv", default="")
     args = parser.parse_args()
 
-    main(args.folder, args.custom, args.csv)
+    # main(args.folder, args.custom, args.csv)
 
-# main("./images/exposure sequences/exposure sequences/virtual_camera/linear/")
-# main("./images/exposure sequences/exposure sequences/Nikon_Coolpix_E5400/")
-# main("./images/mine/", True, "./images/mine/exposures.csv")
+    main("./images/exposure sequences/exposure sequences/virtual_camera/linear/")
+    main("./images/exposure sequences/exposure sequences/virtual_camera/noise25/")
+    main("./images/exposure sequences/exposure sequences/virtual_camera/noise50/")
+    main("./images/exposure sequences/exposure sequences/virtual_camera/noise100/")
+    main("./images/exposure sequences/exposure sequences/virtual_camera/noise150/")
+    main("./images/exposure sequences/exposure sequences/virtual_camera/srgb/")
+    main("./images/exposure sequences/exposure sequences/Canon_EOS_550D/")
+    main("./images/exposure sequences/exposure sequences/Minolta_DiMAGE_A1/")
+    main("./images/exposure sequences/exposure sequences/Nikon_Coolpix_E5400/")
+    main("./images/exposure sequences/exposure sequences/Nikon_D2H/")
+    main("./images/mine/", True, "./images/mine/exposures.csv")

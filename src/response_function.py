@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import csv
+import json
 import math
 EPSILON_R = 1e-4
 LIMIT_F = 5
@@ -211,7 +213,7 @@ class Radiance_Map:
             print(f"Degree {rm.final_degree} has been chosen.")
 
 
-    def plot_response_function(rm):
+    def plot_response_function(rm, save_path):
 
         if rm.final_degree == -1 or not rm.coeff_final[rm.final_degree]:
             print("No response function :(")
@@ -240,4 +242,36 @@ class Radiance_Map:
         plt.grid(True)
         plt.legend()
         plt.tight_layout()
-        plt.show()
+
+        if save_path is not None:
+            plt.savefig(save_path, dpi=300, bbox_inches="tight")
+
+
+        plt.close()
+
+    def save_results(rm, filepath, time):
+
+        with open(filepath, "w", newline="") as file:
+            writer = csv.writer(file)
+
+            writer.writerow([
+                "Degree",
+                "Error",
+                "Time (seconds)",
+                "Coefficients",
+                "Exposure Ratios"
+            ])
+
+            for d in range(1, LIMIT_F + 1):
+                if not rm.coeff_final[d]:
+                    continue
+
+                writer.writerow([
+                    d,
+                    rm.errors[d],
+                    time[d] if isinstance(time, dict) else time,
+                    json.dumps(rm.coeff_final[d]),
+                    json.dumps(rm.Rs[d])
+                ])
+
+        print(f"Results saved to: {filepath}")
