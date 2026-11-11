@@ -8,8 +8,8 @@ EPSILON_M = 0.02
 
 class Radiance_Map:
     def __init__(rm,Image, R_est_list):
-        rm.R_est_list_orig = R_est_list.copy() # check len of R_est_list
-        rm.R_est_list = R_est_list.copy() # check len of R_est_list
+        rm.R_est_list_orig = R_est_list.copy() # check len of R_est_list -> gerek kalmadı buna numpya geçince
+        rm.R_est_list = R_est_list.copy() # check len of R_est_list -> bunlar hala kullanılıyor mu
         rm.R_est_list_prev = None
         rm.degree = 0
         rm.coeff = []
@@ -20,41 +20,37 @@ class Radiance_Map:
         rm.P = rm.M.shape[1]
         rm.final_degree = 1
         rm.M_n = np.stack([rm.M ** n for n in range(LIMIT_F + 1)],axis=0)
-        pair_counts = ((rm.M[:-1] > EPSILON_M) & (rm.M[:-1] < 1 - EPSILON_M) &
-                       (rm.M[1:] > EPSILON_M) & (rm.M[1:] < 1 - EPSILON_M)).sum(axis=1)
-        print(f"Valid pixeller: {pair_counts} / images:{rm.Q,} / pixels: {rm.P}")
 
-
-
-    def derivation_coeff(rm, n):
-
-        R = np.asarray(rm.R_est_list)
-
-        A = rm.M_n[1:rm.degree + 1, :-1, :] - (
-                R[None, :, None] * rm.M_n[1:rm.degree + 1, 1:, :]
-        )
-
-        A_diff = A - A[rm.degree - 1, :, :][None, :, :]
-
-        valid_pairs = (
-                (rm.M[:-1, :] > EPSILON_M) &
-                (rm.M[:-1, :] < 1 - EPSILON_M) &
-                (rm.M[1:, :] > EPSILON_M) &
-                (rm.M[1:, :] < 1 - EPSILON_M)
-        )
-
-        L_n = np.sum(
-            A_diff[:rm.degree - 1] *
-            A_diff[n][None, :, :] *
-            valid_pairs[None, :, :],
-            axis=(1, 2)
-        )
-
-        R_n = -rm.I_max * np.sum(
-            A_diff[n] * A[rm.degree - 1] * valid_pairs
-        )
-
-        return L_n, R_n
+    # numpya geçince birleştirince daha hızlı oldu
+    # def derivation_coeff(rm, n):
+    #
+    #     R = np.asarray(rm.R_est_list)
+    #
+    #     A = rm.M_n[1:rm.degree + 1, :-1, :] - (
+    #             R[None, :, None] * rm.M_n[1:rm.degree + 1, 1:, :]
+    #     )
+    #
+    #     A_diff = A - A[rm.degree - 1, :, :][None, :, :]
+    #
+    #     valid_pairs = (
+    #             (rm.M[:-1, :] > EPSILON_M) &
+    #             (rm.M[:-1, :] < 1 - EPSILON_M) &
+    #             (rm.M[1:, :] > EPSILON_M) &
+    #             (rm.M[1:, :] < 1 - EPSILON_M)
+    #     )
+    #
+    #     L_n = np.sum(
+    #         A_diff[:rm.degree - 1] *
+    #         A_diff[n][None, :, :] *
+    #         valid_pairs[None, :, :],
+    #         axis=(1, 2)
+    #     )
+    #
+    #     R_n = -rm.I_max * np.sum(
+    #         A_diff[n] * A[rm.degree - 1] * valid_pairs
+    #     )
+    #
+    #     return L_n, R_n
 
 
     def update_coeff(rm):
@@ -65,10 +61,9 @@ class Radiance_Map:
             rm.coeff = [0.0, rm.I_max]
             return
 
-        A = rm.M_n[1:rm.degree + 1, :-1, :] - (
-                R[None, :, None] * rm.M_n[1:rm.degree + 1, 1:, :]
-        )
-
+        A1 = rm.M_n[1:rm.degree + 1, :-1, :]
+        A2 =  - (R[None, :, None] * rm.M_n[1:rm.degree + 1, 1:, :])
+        A = A1 - A2
         A_diff = A[:-1] - A[-1][None, :, :]
 
         valid_pairs = (
@@ -106,13 +101,13 @@ class Radiance_Map:
             axis=0
         )
 
-        valid_pixels = (
+        valids = (
                 (rm.M > EPSILON_M) &
                 (rm.M < 1 - EPSILON_M)
         )
 
         for q in range(rm.Q - 1):
-            valid = valid_pixels[q] & valid_pixels[q + 1]
+            valid = valids[q] & valids[q + 1]
 
             if not np.any(valid):
                 print(f"Warning: no valid pixel pairs for exposure pair {q}, keeping R = {rm.R_est_list[q]}")
@@ -233,11 +228,8 @@ class Radiance_Map:
         plt.figure(figsize=(8, 5))
         plt.plot(x, y, label=f"Response Function (degree {rm.final_degree})")
 
-        y_srgb = np.where(
-            x <= 0.04045,
-            x / 12.92,
-            ((x + 0.055) / 1.055) ** 2.4
-        )
+        y_srgb = np.where( x <= 0.04045, x / 12.92,((x + 0.055) / 1.055) ** 2.4)
+
 
         plt.plot(x, y_srgb, label="sRGB", color="orange")
         plt.plot(x, x, "--", label="Linear ", color="gray")
