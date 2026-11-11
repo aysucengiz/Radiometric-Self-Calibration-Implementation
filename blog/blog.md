@@ -20,3 +20,4 @@ mine: Total (load + calibration): 11.60 s
 nikon coolpix: Total (load + calibration): 6.11 s
 linear (no noise): Total (load + calibration): 1.31 s
 srgb: Total (load + calibration): 4.69 s 
+canon: Total (load + calibration): 5.97 s
