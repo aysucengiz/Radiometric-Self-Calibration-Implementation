@@ -2,7 +2,7 @@ from src.response_function import Radiance_Map
 import os
 import numpy as np
 from PIL import Image as PILImage
-
+import time
 import csv
 from fractions import Fraction
 
@@ -54,11 +54,21 @@ def main(folder, custom: bool = False, file_csv: str = ""):
     print("Radiometric Self Calibration (Mitsunaga and Nayar 1999)")
     # get the image folder path as the parameter of main
     # turn images into M, with the dimensions  P (pixel number) x Q (image count)
+    t_start = time.perf_counter()
+
     Rs, Images = examples(folder, custom, file_csv)
+    t_load = time.perf_counter()
+    print(f"Loading images took {t_load - t_start:.2f} s")
+
     radmap = Radiance_Map(Images, Rs)
     radmap.response_function()
+    t_calib = time.perf_counter()
+    print(f"Calibration took {t_calib - t_load:.2f} s")
+    print(f"Total (load + calibration): {t_calib - t_start:.2f} s")
+
+    # plotted last, so the time you spend looking at the window isn't counted
     radmap.plot_response_function()
-    
+
     return
 
 
