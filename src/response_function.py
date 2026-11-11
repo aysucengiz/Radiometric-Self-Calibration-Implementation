@@ -1,8 +1,10 @@
 import numpy as np
+import matplotlib.pyplot as plt
 import math
-EPSILON_R = 1e-6
-LIMIT_F = 10
+EPSILON_R = 1e-2
+LIMIT_F = 7
 LIMIT_R = 10
+EPSILON_M = 0.02
 
 class Radiance_Map:
     def __init__(rm,Image, R_est_list):
@@ -13,45 +15,41 @@ class Radiance_Map:
         rm.coeff = []
         rm.I_max = 1 
         rm.M =  Image.astype(np.float64) / 255.0
-        rm.Q = rm.M.shape[1]
-        rm.P = rm.M.shape[0]
+        rm.Q = rm.M.shape[0]
+        rm.P = rm.M.shape[1]
         rm.final_degree = 1
+        rm.M_n = np.stack([rm.M ** n for n in range(LIMIT_F + 1)],axis=0)
 
 
-    
-    def derivation_coeff(rm,n):
-        
-        # f(1) = I_max
-        # eliminate c_N
 
-        # A: precompute M_pq^n - R_q,q+1 * M_pq^n
-        A = []
-        for q in range(rm.Q-1):
-            A.append([])
-            R_qq1 = rm.R_est_list[q]
-            for p in range(rm.P):
-                A[q].append([])
-                M_pq = rm.M[p][q]
-                M_pq1 = rm.M[p][q+1]
-                for m in range(rm.degree + 1):
-                    temp = M_pq**m - R_qq1 * M_pq1**m
-                    A[q][p].append(temp)
-        
-        # Im dying here
-        # record the coefficients of all cn
-        L_n = []  
-        for m in range(rm.degree):
-            tot = 0
-            for q in range(rm.Q-1):
-                for p in range(rm.P):
-                    tot += (A[q][p][m]-A[q][p][rm.degree])  * (A[q][p][n]-A[q][p][rm.degree])
-            L_n.append(tot)
-        
-        R_n = 0  
-        for q in range(rm.Q-1):
-            for p in range(rm.P):
-                R_n -= rm.I_max * (A[q][p][n] - A[q][p][rm.degree]) * A[q][p][rm.degree]
-                
+    def derivation_coeff(rm, n):
+
+        R = np.asarray(rm.R_est_list)
+
+        A = rm.M_n[:rm.degree + 1, :-1, :] - (
+                R[None, :, None] * rm.M_n[:rm.degree + 1, 1:, :]
+        )
+
+        A_diff = A - A[rm.degree, :, :][None, :, :]
+
+        valid_pairs = (
+                (rm.M[:-1, :] > EPSILON_M) &
+                (rm.M[:-1, :] < 1 - EPSILON_M) &
+                (rm.M[1:, :] > EPSILON_M) &
+                (rm.M[1:, :] < 1 - EPSILON_M)
+        )
+
+        L_n = np.sum(
+            A_diff[:rm.degree] *
+            A_diff[n][None, :, :] *
+            valid_pairs[None, :, :],
+            axis=(1, 2)
+        )
+
+        R_n = -rm.I_max * np.sum(
+            A_diff[n] * A[rm.degree] * valid_pairs
+        )
+
         return L_n, R_n
             
         
@@ -65,6 +63,8 @@ class Radiance_Map:
             R.append(R_n)
         
         try:
+            print(f"L: {L}")
+            print(f"R: {R}")
             C = np.linalg.solve(L, R)
         except np.linalg.LinAlgError:
             raise ValueError(f"Singular coefficient system at degree {rm.degree}")
@@ -78,30 +78,33 @@ class Radiance_Map:
         rm.R_est_list_prev = rm.R_est_list.copy() 
         for q in range (rm.Q - 1):
             res = 0
+            pixels_used = 0
             for p in range(rm.P):
                 num = 0
                 den = 0
+                if rm.M_n[1][q][p] <= EPSILON_M or rm.M_n[1][q][p] >= 1- EPSILON_M:
+                    continue
+                if rm.M_n[1][q+1][p] <= EPSILON_M or rm.M_n[1][q+1][p] >= 1- EPSILON_M:
+                    continue
                 for n in range(rm.degree+1):
-                    num += rm.coeff[n] * rm.M[p][q]**n
-                    den += rm.coeff[n] * rm.M[p][q+1]**n
+                    num += rm.coeff[n] * rm.M_n[n][q][p]
+                    den += rm.coeff[n] * rm.M_n[n][q+1][p]
                 if abs(den) < 1e-12:
                     print("Denominator was zero!!")
                 else:
                     res += num/den
-            rm.R_est_list[q] = res
+                    pixels_used += 1
+            rm.R_est_list[q] = res / pixels_used
            
     def compute_error(rm):
-        err = 0
-        
-        for q in range(rm.Q-1):
-            for p in range(rm.P):
-                tot = 0
-                M_pq = rm.M[p][q]
-                M_pq1 = rm.M[p][q+1]
-                R_qq1 = rm.R_est_list[q]
-                for n in range(rm.degree + 1):
-                    tot += rm.coeff[n] * (M_pq**n - R_qq1 * M_pq1**n)
-                err += tot**2
+        M_n = rm.M_n[:rm.degree + 1]
+
+        R = np.asarray(rm.R_est_list)
+        coeff = np.asarray(rm.coeff)
+
+        A = M_n[:, :-1, :] - R[None, :, None] * M_n[:, 1:, :]
+
+        err = np.sum((coeff[:, None, None] * A).sum(axis=0) ** 2)
         return err
         
         
@@ -113,6 +116,7 @@ class Radiance_Map:
             return False
         
         errors = [abs(rm.R_est_list_prev[i]-rm.R_est_list[i]) for i in range(rm.Q-1)]
+        print(f"R is not converged yet. Max error: {max(errors)}. R estimations: {rm.R_est_list}")
         return max(errors) < EPSILON_R
 
     def choose_best(rm):
@@ -134,6 +138,7 @@ class Radiance_Map:
         rm.coeff_final = [[] for i in range(LIMIT_F+1)]
         rm.Rs = [[] for i in range(LIMIT_F+1)]
         for deg in range(1,LIMIT_F+1):
+            print(f"Degree: {deg}")
             rm.degree = deg
             rm.new_iteration()
             rm.R_est_list = rm.R_est_list_orig.copy()
@@ -142,12 +147,17 @@ class Radiance_Map:
             for _ in range(LIMIT_R):
                 # r est coeff computation loop
                 rm.update_coeff()
-                rm.update_R_est()
+                rm.errors[rm.degree] = rm.compute_error()
+                rm.coeff_final[rm.degree] = rm.coeff.copy()  
+                rm.Rs[rm.degree] = rm.R_est_list.copy()  
+                print(f"Error: {rm.errors[rm.degree]}.\n Coeffs: {rm.coeff_final[rm.degree]}")
+                break
+                """rm.update_R_est()
                 if rm.R_is_converged():
                     rm.errors[rm.degree] = rm.compute_error()
                     rm.coeff_final[rm.degree] = rm.coeff.copy()  
                     rm.Rs[rm.degree] = rm.R_est_list.copy() 
-                    break
+                    break"""
                    
         rm.final_degree = rm.choose_best()
         if rm.final_degree == -1:
@@ -157,28 +167,27 @@ class Radiance_Map:
             print(f"Degree {rm.final_degree} has been chosen.")
         
     
-import matplotlib.pyplot as plt
-def plot_response_function(rm):
+    def plot_response_function(rm):
 
-    if rm.final_degree == -1 or not rm.coeff_final[rm.final_degree]:
-        print("No response function :(")
-        return
+        if rm.final_degree == -1 or not rm.coeff_final[rm.final_degree]:
+            print("No response function :(")
+            return
 
-    coeff = rm.coeff_final[rm.final_degree]
-    x = np.linspace(0, 1, 256)
+        coeff = rm.coeff_final[rm.final_degree]
+        x = np.linspace(0, 1, 256)
 
-    y = np.zeros_like(x)
-    for n, c in enumerate(coeff):
-        y += c * x**n
+        y = np.zeros_like(x)
+        for n, c in enumerate(coeff):
+            y += c * x**n
 
-    plt.figure(figsize=(8, 5))
-    plt.plot(x, y, label=f"Recovered response (degree {rm.final_degree})")
+        plt.figure(figsize=(8, 5))
+        plt.plot(x, y, label=f"Recovered response (degree {rm.final_degree})")
 
-    plt.xlabel("Pixel intensity (M)")
-    plt.ylabel("Radiance (f(M))")
-    plt.title("Recovered Camera Response Function")
-    plt.xlim(0, 1)
-    plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
+        plt.xlabel("Pixel intensity (M)")
+        plt.ylabel("Radiance (f(M))")
+        plt.title("Recovered Camera Response Function")
+        plt.xlim(0, 1)
+        plt.grid(True)
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
