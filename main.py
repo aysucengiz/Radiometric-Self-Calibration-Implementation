@@ -30,7 +30,7 @@ def get_images_from(folder):
     imgs = []
     for f in filenames:
         path = os.path.join(folder,f)
-        img = PILImage.open(path).convert("L")
+        img = PILImage.open(path).convert("L") # grayscale for now -> böyle kaldı
         imgs.append(np.asarray(img))
         
     if not all(img.shape == imgs[0].shape for img in imgs):
@@ -65,22 +65,11 @@ def main(folder, custom: bool = False, file_csv: str = ""):
 import argparse
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Radiometric Self Calibration (Mitsunaga and Nayar)"
-    )
+    parser = argparse.ArgumentParser()
 
-    parser.add_argument("folder", help="Path to the image folder")
-    parser.add_argument(
-        "--custom",
-        action="store_true",
-        help="Use custom exposure ratios from a CSV"
-    )
-    parser.add_argument(
-        "--csv",
-        default="",
-        help="Path to the exposure CSV file"
-    )
-
+    parser.add_argument("folder")
+    parser.add_argument("--custom",action="store_true",)
+    parser.add_argument("--csv", default="")
     args = parser.parse_args()
 
     main(args.folder, args.custom, args.csv)
