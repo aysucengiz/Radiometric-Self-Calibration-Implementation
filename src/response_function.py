@@ -6,6 +6,7 @@ LIMIT_F = 5
 LIMIT_R = 50
 EPSILON_M = 0.02
 
+
 class Radiance_Map:
     def __init__(rm,Image, R_est_list):
         rm.R_est_list_orig = R_est_list.copy() # check len of R_est_list -> gerek kalmadı buna numpya geçince
@@ -62,7 +63,7 @@ class Radiance_Map:
             return
 
         A1 = rm.M_n[1:rm.degree + 1, :-1, :]
-        A2 =  - (R[None, :, None] * rm.M_n[1:rm.degree + 1, 1:, :])
+        A2 =  R[None, :, None] * rm.M_n[1:rm.degree + 1, 1:, :]
         A = A1 - A2
         A_diff = A[:-1] - A[-1][None, :, :]
 
@@ -110,7 +111,6 @@ class Radiance_Map:
             valid = valids[q] & valids[q + 1]
 
             if not np.any(valid):
-                print(f"Warning: no valid pixel pairs for exposure pair {q}, keeping R = {rm.R_est_list[q]}")
                 continue
 
             numerator = np.sum(
@@ -122,7 +122,6 @@ class Radiance_Map:
             )
 
             if denominator < 1e-12:
-                print(f"Warning: zero denominator for exposure pair {q}, keeping R = {rm.R_est_list[q]}")
                 continue
 
             rm.R_est_list[q] = numerator / denominator
@@ -163,7 +162,7 @@ class Radiance_Map:
         errors = [abs(rm.R_est_list_prev[i]-rm.R_est_list[i]) for i in range(rm.Q-1)]
         if max(errors) < EPSILON_R:
             return True
-        print(f"R is not converged yet. Max error: {max(errors)}. R estimations: {rm.R_est_list}")
+        # print(f"R is not converged yet. Max error: {max(errors)}. R estimations: {rm.R_est_list}")
         return False
 
     def choose_best(rm):
@@ -228,7 +227,8 @@ class Radiance_Map:
         plt.figure(figsize=(8, 5))
         plt.plot(x, y, label=f"Response Function (degree {rm.final_degree})")
 
-        y_srgb = np.where( x <= 0.04045, x / 12.92,((x + 0.055) / 1.055) ** 2.4)
+        # take inverse of hw pdf
+        y_srgb = np.where( x <= 0.0031308, x / 12.92,((x + 0.055) / 1.055) ** 2.4)
 
 
         plt.plot(x, y_srgb, label="sRGB", color="orange")
