@@ -1,9 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import math
-EPSILON_R = 1e-2
-LIMIT_F = 7
-LIMIT_R = 10
+EPSILON_R = 1e-4
+LIMIT_F = 5
+LIMIT_R = 50
 EPSILON_M = 0.02
 
 class Radiance_Map:
@@ -13,12 +13,16 @@ class Radiance_Map:
         rm.R_est_list_prev = None
         rm.degree = 0
         rm.coeff = []
-        rm.I_max = 1 
+        rm.I_max = 1
         rm.M =  Image.astype(np.float64) / 255.0
+        rm.M = rm.M[:, np.random.default_rng(0).choice(rm.M.shape[1], min(20000, rm.M.shape[1]), replace=False)] # random pixel subsample
         rm.Q = rm.M.shape[0]
         rm.P = rm.M.shape[1]
         rm.final_degree = 1
         rm.M_n = np.stack([rm.M ** n for n in range(LIMIT_F + 1)],axis=0)
+        pair_counts = ((rm.M[:-1] > EPSILON_M) & (rm.M[:-1] < 1 - EPSILON_M) &
+                       (rm.M[1:] > EPSILON_M) & (rm.M[1:] < 1 - EPSILON_M)).sum(axis=1)
+        print(f"Valid pixeller: {pair_counts} / images:{rm.Q,} / pixels: {rm.P}")
 
 
 
@@ -26,11 +30,11 @@ class Radiance_Map:
 
         R = np.asarray(rm.R_est_list)
 
-        A = rm.M_n[:rm.degree + 1, :-1, :] - (
-                R[None, :, None] * rm.M_n[:rm.degree + 1, 1:, :]
+        A = rm.M_n[1:rm.degree + 1, :-1, :] - (
+                R[None, :, None] * rm.M_n[1:rm.degree + 1, 1:, :]
         )
 
-        A_diff = A - A[rm.degree, :, :][None, :, :]
+        A_diff = A - A[rm.degree - 1, :, :][None, :, :]
 
         valid_pairs = (
                 (rm.M[:-1, :] > EPSILON_M) &
@@ -40,94 +44,139 @@ class Radiance_Map:
         )
 
         L_n = np.sum(
-            A_diff[:rm.degree] *
+            A_diff[:rm.degree - 1] *
             A_diff[n][None, :, :] *
             valid_pairs[None, :, :],
             axis=(1, 2)
         )
 
         R_n = -rm.I_max * np.sum(
-            A_diff[n] * A[rm.degree] * valid_pairs
+            A_diff[n] * A[rm.degree - 1] * valid_pairs
         )
 
         return L_n, R_n
-            
-        
+
+
     def update_coeff(rm):
         # L C = R
-        L = []
-        R = []
-        for n in range(rm.degree):
-            L_n, R_n = rm.derivation_coeff(n)
-            L.append(L_n) 
-            R.append(R_n)
-        
+        R = np.asarray(rm.R_est_list)
+
+        if rm.degree == 1:
+            rm.coeff = [0.0, rm.I_max]
+            return
+
+        A = rm.M_n[1:rm.degree + 1, :-1, :] - (
+                R[None, :, None] * rm.M_n[1:rm.degree + 1, 1:, :]
+        )
+
+        A_diff = A[:-1] - A[-1][None, :, :]
+
+        valid_pairs = (
+                (rm.M[:-1, :] > EPSILON_M) &
+                (rm.M[:-1, :] < 1 - EPSILON_M) &
+                (rm.M[1:, :] > EPSILON_M) &
+                (rm.M[1:, :] < 1 - EPSILON_M)
+        )
+
+        X = A_diff[:, valid_pairs]
+        Y = A[-1, valid_pairs]
+
+        L = X @ X.T
+        RHS = -rm.I_max * (X @ Y)
         try:
-            print(f"L: {L}")
-            print(f"R: {R}")
-            C = np.linalg.solve(L, R)
+            C = np.linalg.solve(L, RHS)
         except np.linalg.LinAlgError:
-            raise ValueError(f"Singular coefficient system at degree {rm.degree}")
+            raise ValueError(
+                f"Singular coefficient system at degree {rm.degree}"
+            )
 
         c_N = rm.I_max - np.sum(C)
-        rm.coeff = list(C) + [c_N]
+        rm.coeff = [0.0] + list(C) + [c_N]
 
 
 
     def update_R_est(rm):
-        rm.R_est_list_prev = rm.R_est_list.copy() 
-        for q in range (rm.Q - 1):
-            res = 0
-            pixels_used = 0
-            for p in range(rm.P):
-                num = 0
-                den = 0
-                if rm.M_n[1][q][p] <= EPSILON_M or rm.M_n[1][q][p] >= 1- EPSILON_M:
-                    continue
-                if rm.M_n[1][q+1][p] <= EPSILON_M or rm.M_n[1][q+1][p] >= 1- EPSILON_M:
-                    continue
-                for n in range(rm.degree+1):
-                    num += rm.coeff[n] * rm.M_n[n][q][p]
-                    den += rm.coeff[n] * rm.M_n[n][q+1][p]
-                if abs(den) < 1e-12:
-                    print("Denominator was zero!!")
-                else:
-                    res += num/den
-                    pixels_used += 1
-            rm.R_est_list[q] = res / pixels_used
-           
-    def compute_error(rm):
-        M_n = rm.M_n[:rm.degree + 1]
+        rm.R_est_list_prev = rm.R_est_list.copy()
 
-        R = np.asarray(rm.R_est_list)
         coeff = np.asarray(rm.coeff)
 
-        A = M_n[:, :-1, :] - R[None, :, None] * M_n[:, 1:, :]
+        # Evaluate the recovered response for every image and pixel
+        f_M = np.sum(
+            coeff[:, None, None] * rm.M_n[:rm.degree + 1],
+            axis=0
+        )
 
-        err = np.sum((coeff[:, None, None] * A).sum(axis=0) ** 2)
-        return err
-        
-        
+        valid_pixels = (
+                (rm.M > EPSILON_M) &
+                (rm.M < 1 - EPSILON_M)
+        )
+
+        for q in range(rm.Q - 1):
+            valid = valid_pixels[q] & valid_pixels[q + 1]
+
+            if not np.any(valid):
+                print(f"Warning: no valid pixel pairs for exposure pair {q}, keeping R = {rm.R_est_list[q]}")
+                continue
+
+            numerator = np.sum(
+                f_M[q, valid] * f_M[q + 1, valid]
+            )
+
+            denominator = np.sum(
+                f_M[q + 1, valid] ** 2
+            )
+
+            if denominator < 1e-12:
+                print(f"Warning: zero denominator for exposure pair {q}, keeping R = {rm.R_est_list[q]}")
+                continue
+
+            rm.R_est_list[q] = numerator / denominator
+
+        rm.R_est_list[0] = rm.R_est_list_orig[0] # anchor R[0]: removes the f^t / R^t ambiguity
+
+    def compute_error(rm):
+        R = np.asarray(rm.R_est_list)
+
+        A = rm.M_n[1:rm.degree + 1, :-1, :] - (
+                R[None, :, None] * rm.M_n[1:rm.degree + 1, 1:, :]
+        )
+
+        valid_pairs = (
+                (rm.M[:-1, :] > EPSILON_M) &
+                (rm.M[:-1, :] < 1 - EPSILON_M) &
+                (rm.M[1:, :] > EPSILON_M) &
+                (rm.M[1:, :] < 1 - EPSILON_M)
+        )
+
+        coeff = np.asarray(rm.coeff[1:])
+
+        residual = (coeff[:, None, None] * A).sum(axis=0)
+
+        if not np.any(valid_pairs):
+            return float('inf')
+
+        return np.mean(residual[valid_pairs] ** 2)
+
+
     def new_iteration(rm):
         rm.R_est_list_prev = None
 
     def R_is_converged(rm):
         if rm.R_est_list_prev is None:
             return False
-        
+
         errors = [abs(rm.R_est_list_prev[i]-rm.R_est_list[i]) for i in range(rm.Q-1)]
+        if max(errors) < EPSILON_R:
+            return True
         print(f"R is not converged yet. Max error: {max(errors)}. R estimations: {rm.R_est_list}")
-        return max(errors) < EPSILON_R
+        return False
 
     def choose_best(rm):
-        min_ = float('inf')
-        curr_degree = -1
-        for i in range(1,LIMIT_F+1):
-            if rm.errors[i] < min_:
-                min_ = rm.errors[i]
-                curr_degree = i
-        return curr_degree
-            
+        cand = {d: rm.errors[d] for d in range(1, LIMIT_F + 1) if rm.coeff_final[d]}
+        if not cand: return -1
+        best = min(cand.values())
+        return min(d for d, e in cand.items() if e <= best * 1.05)
+
 
     # order of images in increasing exposure
     # M: brightness measurement
@@ -147,26 +196,27 @@ class Radiance_Map:
             for _ in range(LIMIT_R):
                 # r est coeff computation loop
                 rm.update_coeff()
-                rm.errors[rm.degree] = rm.compute_error()
-                rm.coeff_final[rm.degree] = rm.coeff.copy()  
-                rm.Rs[rm.degree] = rm.R_est_list.copy()  
-                print(f"Error: {rm.errors[rm.degree]}.\n Coeffs: {rm.coeff_final[rm.degree]}")
-                break
-                """rm.update_R_est()
+                rm.update_R_est()
                 if rm.R_is_converged():
-                    rm.errors[rm.degree] = rm.compute_error()
-                    rm.coeff_final[rm.degree] = rm.coeff.copy()  
-                    rm.Rs[rm.degree] = rm.R_est_list.copy() 
-                    break"""
-                   
+                    break
+
+            rm.update_coeff()
+            rm.errors[rm.degree] = rm.compute_error()
+            rm.coeff_final[rm.degree] = rm.coeff.copy()
+            rm.Rs[rm.degree] = rm.R_est_list.copy()
+            print(f"Error: {rm.errors[rm.degree]}.\n Coeffs: {rm.coeff_final[rm.degree]}")
         rm.final_degree = rm.choose_best()
+
+        for i in range(1, LIMIT_F + 1):
+            print(f"Degree {i}: {rm.coeff_final[i]}")
+            print(f"Degree {i}: {rm.errors[i]}")
         if rm.final_degree == -1:
             print("No degree converged")
             return False
         else:
             print(f"Degree {rm.final_degree} has been chosen.")
-        
-    
+
+
     def plot_response_function(rm):
 
         if rm.final_degree == -1 or not rm.coeff_final[rm.final_degree]:
@@ -181,11 +231,19 @@ class Radiance_Map:
             y += c * x**n
 
         plt.figure(figsize=(8, 5))
-        plt.plot(x, y, label=f"Recovered response (degree {rm.final_degree})")
+        plt.plot(x, y, label=f"Response Function (degree {rm.final_degree})")
 
-        plt.xlabel("Pixel intensity (M)")
-        plt.ylabel("Radiance (f(M))")
-        plt.title("Recovered Camera Response Function")
+        y_srgb = np.where(
+            x <= 0.04045,
+            x / 12.92,
+            ((x + 0.055) / 1.055) ** 2.4
+        )
+
+        plt.plot(x, y_srgb, label="sRGB", color="orange")
+        plt.plot(x, x, "--", label="Linear ", color="gray")
+        plt.xlabel("M")
+        plt.ylabel("f(M)")
+        plt.title("Camera Response Function")
         plt.xlim(0, 1)
         plt.grid(True)
         plt.legend()
