@@ -9,6 +9,8 @@ The picture shows my TV, my framed puzzle and balcony. With high exposure images
 
 The tonemapped photo and the response curve I got from bracket for my exposure sequence are below.
 
+The tv was the bright part and the buildings seen from the balcony are the darkest parts. My camera is not the best, especially at night.
+
 ![blog_images/xiaomi_response_curve.png](blog_images/xiaomi_response_curve.png)
 
 ![blog_images/my_image_local_tonemapped.png](blog_images/my_image_local_tonemapped.png)
