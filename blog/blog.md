@@ -2,7 +2,12 @@
 
 ![blog_images/my_image_local_tonemapped.png](blog_images/my_image_local_tonemapped.png)
 # Image Capture
+My phone is Redmi Note 12 Pro, Xiaomi.
+To capture images, I did not use any software. I simply opened the pro settings, leaned my phone to a bottle so that I could choose exposure and take pictures without picking it up. I chose nearly every possible exposure while setting ISO to 50. It was night and flash was off. 
 
+Of course, the phone did move a bit especially in the first few pictures. But it was subtle and did not require any alignment.
+
+The picture shows my TV, my framed puzzle and balcony. With high exposure images, it is possible to see the buildings across my balcony. To my luck, someone opened and closed their light a few times during capture. Same as my internet router superbox which had blinking blue lights.
 # Algorithm
 ## Part 1: Understanding the Algorithm
 
