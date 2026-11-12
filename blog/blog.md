@@ -60,6 +60,9 @@ def response_function(rm):
             print(f"Error: {rm.errors[rm.degree]}.\n Coeffs: {rm.coeff_final[rm.degree]}")
         rm.final_degree = rm.choose_best()
 ```
+
+You will notice everything is single channel. That is necause I initially turned the image into grayscale to simplify things and it stayed that way. 
+
 ### Coefficient Computation
 This part is essentially about constructing two matrices, L and R:
 
