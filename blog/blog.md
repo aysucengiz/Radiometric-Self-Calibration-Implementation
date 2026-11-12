@@ -21,6 +21,44 @@ I chose Python because c++ requires memory handling which can cause very annoyin
 ## Part 1: Understanding the Algorithm
 During this process, I started with manual loops to understand the idea of the general algorithm. The paper, though it seems complete did overlook many parts. For example, the epsilon that is required to determine convergence was left undetermined. 
 
+Everything is defined under a class to avoid constant parameter passing.
+
+### Main loop
+
+ˋˋˋ    def response_function(rm):
+        rm.errors = [float('inf') for _ in range(LIMIT_F+1)]
+        rm.coeff_final = [[] for i in range(LIMIT_F+1)]
+        rm.Rs = [[] for i in range(LIMIT_F+1)]
+        for deg in range(1,LIMIT_F+1):
+            print(f"Degree: {deg}")
+            rm.degree = deg
+            rm.new_iteration()
+            rm.R_est_list = rm.R_est_list_orig.copy()
+            #polynomial degree
+            rm.coeff = [0 for i in range(rm.degree+1)]
+            for _ in range(LIMIT_R):
+                # r est coeff computation loop
+                rm.update_coeff()
+                rm.update_R_est()
+                if rm.R_is_converged():
+                    break
+
+            rm.update_coeff()
+            rm.errors[rm.degree] = rm.compute_error()
+            rm.coeff_final[rm.degree] = rm.coeff.copy()
+            rm.Rs[rm.degree] = rm.R_est_list.copy()
+            print(f"Error: {rm.errors[rm.degree]}.\n Coeffs: {rm.coeff_final[rm.degree]}")
+        rm.final_degree = rm.choose_best()
+        ˋˋˋ
+
+### Choosing the Best parameter
+This function is quite simple. I compare the precomputed errors and choose the smallest.
+
+This is the part that I think might be faulty. Because my linear response function is very feasible and close to reality while the algorithm keeps choosing the biggest degree result. Maybe the answer wasn't directly comparing the degree errors but to do something additional. 
+
+I would think lower degrees would have priority since there are more degrees, possibly adding up to the overall sum. Apparently that is not the case or something is wrong with the code. Maybe I should've recomputed errors with the final ratios.
+
+
 ## Part 2: Speeding up
 
 ## Part 3: Missing Pieces
