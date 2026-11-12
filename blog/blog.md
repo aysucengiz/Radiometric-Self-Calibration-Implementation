@@ -32,7 +32,8 @@ The idea is as follows:
 5. If converged, increment the degree and return to 1 until degree is in its max value
 6. Compare the errors and choose the coefficient list with the smallest error.
 
-ˋˋˋ    def response_function(rm):
+ˋˋˋ    
+def response_function(rm):
         rm.errors = [float('inf') for _ in range(LIMIT_F+1)]
         rm.coeff_final = [[] for i in range(LIMIT_F+1)]
         rm.Rs = [[] for i in range(LIMIT_F+1)]
@@ -93,6 +94,29 @@ C = list(C) + [c_N]
 
 
 ### Ratio Estimation
+Here, we compute a nominator and a denominator using the freshly calculated coefficients. I just summed every ratio I got from testing the function with each pixel in every exposure pair.
+
+ˋˋˋ
+def update_R_est(rm):
+        rm.R_est_list_prev = rm.R_est_list.copy() 
+        for q in range (rm.Q - 1):
+            res = 0
+            for p in range(rm.P):
+                num = 0
+                den = 0
+                for n in range(rm.degree+1):
+                    num += rm.coeff[n] * rm.M[p][q]**n
+                    den += rm.coeff[n] * rm.M[p][q+1]**n
+                if abs(den) < 1e-12:
+                    print("Denominator was zero!!")
+                else:
+                    res += num/den
+            rm.R_est_list[q] = res
+ˋˋˋ
+
+Maybe simply taking the difference of the old and the new ratios could be an option that I did not think about before but paper does state f(M).
+
+Or I could test f for each value (0-255) and compute an error that way. This comparison and error computation does seem arbitrary to me or maybe I'm thinking too much.
 
 ### Choosing the Best parameter
 This function is quite simple. I compare the precomputed errors and choose the smallest.
