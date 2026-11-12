@@ -57,7 +57,7 @@ def response_function(rm):
             rm.Rs[rm.degree] = rm.R_est_list.copy()
             print(f"Error: {rm.errors[rm.degree]}.\n Coeffs: {rm.coeff_final[rm.degree]}")
         rm.final_degree = rm.choose_best()
-        ˋˋˋ
+ˋˋˋ
 ### Coefficient Computation
 This part is essentially about constructing two matrices, L and R:
 
@@ -65,7 +65,7 @@ This part is essentially about constructing two matrices, L and R:
 L C = R
 ˋˋˋ
 
-where $c_i$ is the elemt of C for $1 < i < n-1$. I omitted 0th and nth coefficients. 0, because I wanted it to start from 0 (after several tests) and 1 because I set $f(1)= 1$ as the paper suggested.  
+where $c_i$ is the elemt of C for 1 < i < n-1. I omitted 0th and nth coefficients. 0, because I wanted it to start from 0 (after several tests) and 1 because I set f(1)= 1 as the paper suggested.  
 
 R is originally zero since we are taking the derivative of the error function according to every coefficient and setting it to zero. However, when we set f(1)=1 and therefore c_N = Imax - sum(C - c_N), there are some constants left in the equation which are transferred to R.
 
@@ -127,16 +127,30 @@ I would think lower degrees would have priority since there are more degrees, po
 
 
 ## Part 2: Speeding up
-I then started to use numpy, which looks very similar to Matlab notation. This sped up things reasonably well and I started to test frequently. And tested some other options. One of them was setting f(0) to be 0. Even without that the results were not monotonically increasing despite the assumption. 
+I then started to use numpy, which looks very similar to Matlab notation. This sped up things reasonably well and I started to test frequently. And tested some other options. One of them was setting f(0) to be 0. Even without that the results were not monotonically increasing despite the assumption.
+
+I started to omit pixels that are too close to borders (0 and 255) because over or underexposed pixels do not help with the ratios. I also ommited the result for ratio estimation when the denominator was too small.
 
 ## Results
-### Time table
+The results are under the outputs folder. To speed up the process, I chose maximum degree to be 5. Every tour with a bigger degree takes exponentially more time.
 
-### Comparisons
+### Response Curves
+![outputs/Nikon_Coolpix_E5400/response_final.png](outputs/Nikon_Coolpix_E5400/response_final.png)
 
-### Time
+![outputs/linear/response_final.png](outputs/linear/response_final.png)
+![outputs/mine/response_final.png](outputs/mine/response_final.png)
+![outputs/srgb/response_final.png](outputs/srgb/response_final.png)
+
+### Times
 mine: Total (load + calibration): 11.60 s
 nikon coolpix: Total (load + calibration): 6.11 s
 linear (no noise): Total (load + calibration): 1.31 s
 srgb: Total (load + calibration): 4.69 s 
 canon: Total (load + calibration): 5.97 s
+
+## Conclusion
+I think apart from some arrangments the code is really close to working. Sadly I do not have more time until even the extended deadline.
+
+
+
+
