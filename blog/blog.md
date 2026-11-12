@@ -144,18 +144,22 @@ The times include image loading.
 Result of Nikon Cookpix E5400 from implementation (6.11s):
 ![../outputs/Nikon_Coolpix_E5400/response_final.png](../outputs/Nikon_Coolpix_E5400/response_final.png)
 
+Result from bracket:
+![blog_images/nikon_brakcet.png](blog_images/nikon_brakcet.png )
+
 Result of the virtual linear camera from implementation (1.31s):
 ![../outputs/linear/response_final.png](../outputs/linear/response_final.png)
 
 Result of my camera from implementation (11 images) (11.6s):
 ![../outputs/mine/response_final.png](../outputs/mine/response_final.png)
 
+
 Result of the virtual srgb camera from implementation (4.69s):
 ![../outputs/srgb/response_final.png](../outputs/srgb/response_final.png)
 
+All time, curve and coefficient results are stored under the outputs folder. 
+
+The results are not too far away from the reality, they lean towards the correct way and usually do not ripple unnecessarily. 
+
 ## Conclusion
-I think apart from some arrangments the code is really close to working. Sadly I do not have more time until even the extended deadline.
-
-
-
-
+I think apart from some arrangments the code is really close to working. And the main idea is there. 
