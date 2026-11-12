@@ -137,11 +137,11 @@ I started to omit pixels that are too close to borders (0 and 255) because over 
 The results are under the outputs folder. To speed up the process, I chose maximum degree to be 5. Every tour with a bigger degree takes exponentially more time.
 
 ### Response Curves
-![outputs/Nikon_Coolpix_E5400/response_final.png](outputs/Nikon_Coolpix_E5400/response_final.png)
+![../outputs/Nikon_Coolpix_E5400/response_final.png](../outputs/Nikon_Coolpix_E5400/response_final.png)
 
-![outputs/linear/response_final.png](outputs/linear/response_final.png)
-![outputs/mine/response_final.png](outputs/mine/response_final.png)
-![outputs/srgb/response_final.png](outputs/srgb/response_final.png)
+![../outputs/linear/response_final.png](../outputs/linear/response_final.png)
+![../outputs/mine/response_final.png](../outputs/mine/response_final.png)
+![../outputs/srgb/response_final.png](../outputs/srgb/response_final.png)
 
 ### Times
 mine: Total (load + calibration): 11.60 s
