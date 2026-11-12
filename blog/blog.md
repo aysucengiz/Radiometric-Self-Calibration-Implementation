@@ -136,19 +136,19 @@ I started to omit pixels that are too close to borders (0 and 255) because over 
 ## Results
 The results are under the outputs folder. To speed up the process, I chose maximum degree to be 5. Every tour with a bigger degree takes exponentially more time.
 
-### Response Curves
+The times include image loading. 
+
+Result of Nikon Cookpix E5400 from implementation (6.11s):
 ![../outputs/Nikon_Coolpix_E5400/response_final.png](../outputs/Nikon_Coolpix_E5400/response_final.png)
 
+Result of the virtual linear camera from implementation (1.31s):
 ![../outputs/linear/response_final.png](../outputs/linear/response_final.png)
-![../outputs/mine/response_final.png](../outputs/mine/response_final.png)
-![../outputs/srgb/response_final.png](../outputs/srgb/response_final.png)
 
-### Times
-mine: Total (load + calibration): 11.60 s
-nikon coolpix: Total (load + calibration): 6.11 s
-linear (no noise): Total (load + calibration): 1.31 s
-srgb: Total (load + calibration): 4.69 s 
-canon: Total (load + calibration): 5.97 s
+Result of my camera from implementation (11 images) (11.6s):
+![../outputs/mine/response_final.png](../outputs/mine/response_final.png)
+
+Result of the virtual srgb camera from implementation (4.69s):
+![../outputs/srgb/response_final.png](../outputs/srgb/response_final.png)
 
 ## Conclusion
 I think apart from some arrangments the code is really close to working. Sadly I do not have more time until even the extended deadline.
