@@ -32,7 +32,7 @@ The idea is as follows:
 5. If converged, increment the degree and return to 1 until degree is in its max value
 6. Compare the errors and choose the coefficient list with the smallest error.
 
-ˋˋˋ    
+```  
 def response_function(rm):
         rm.errors = [float('inf') for _ in range(LIMIT_F+1)]
         rm.coeff_final = [[] for i in range(LIMIT_F+1)]
@@ -57,13 +57,13 @@ def response_function(rm):
             rm.Rs[rm.degree] = rm.R_est_list.copy()
             print(f"Error: {rm.errors[rm.degree]}.\n Coeffs: {rm.coeff_final[rm.degree]}")
         rm.final_degree = rm.choose_best()
-ˋˋˋ
+```
 ### Coefficient Computation
 This part is essentially about constructing two matrices, L and R:
 
-ˋˋˋ
+```
 L C = R
-ˋˋˋ
+```
 
 where $c_i$ is the elemt of C for 1 < i < n-1. I omitted 0th and nth coefficients. 0, because I wanted it to start from 0 (after several tests) and 1 because I set f(1)= 1 as the paper suggested.  
 
@@ -71,7 +71,7 @@ R is originally zero since we are taking the derivative of the error function ac
 
 Computation of a single row of L:
 
-ˋˋˋ
+```
 L_n = []  
         for m in range(rm.degree):
             tot = 0
@@ -79,24 +79,24 @@ L_n = []
                 for p in range(rm.P):
                     tot += (A[q][p][m]-A[q][p][rm.degree])  * (A[q][p][n]-A[q][p][rm.degree])
             L_n.append(tot)
-ˋˋˋ
+```
 Where A[q][p][m] = M_{p,q}**m - R_{q,q+1} * M_{p,q+1} ** m. 
 
 Essentially we take the derivative according to c_i and write the resulting equation as a row of this matrix. For c_N, we eliminate it by writing $Imax - sum(C - c_N)$ and add the coefficients resulting from this substitution to the left array. If there are terms without the coefficients, we move it to the right-hand-side of the equation, i.e. to R.
 
 Finally, the resulting linear system is solved with
 
-ˋˋˋ
+```
 C = np.linalg.solve(L,R)
 c_N = I_max - np.sum(C) # simplified line
 C = list(C) + [c_N]
-ˋˋˋ
+```
 
 
 ### Ratio Estimation
 Here, we compute a nominator and a denominator using the freshly calculated coefficients. I just summed every ratio I got from testing the function with each pixel in every exposure pair.
 
-ˋˋˋ
+```
 def update_R_est(rm):
         rm.R_est_list_prev = rm.R_est_list.copy() 
         for q in range (rm.Q - 1):
@@ -112,7 +112,7 @@ def update_R_est(rm):
                 else:
                     res += num/den
             rm.R_est_list[q] = res
-ˋˋˋ
+```
 
 Maybe simply taking the difference of the old and the new ratios could be an option that I did not think about before but paper does state f(M).
 
