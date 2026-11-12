@@ -74,6 +74,10 @@ where $c_i$ is the elemt of C for 1 < i < n-1. I omitted 0th and nth coefficient
 
 R is originally zero since we are taking the derivative of the error function according to every coefficient and setting it to zero. However, when we set f(1)=1 and therefore c_N = Imax - sum(C - c_N), there are some constants left in the equation which are transferred to R.
 
+The math derivation:
+![blog_images/Papercikarim.png](blog_images/Papercikarim.jpg)
+
+
 Computation of a single row of L:
 
 ```
@@ -82,7 +86,7 @@ L_n = []
             tot = 0
             for q in range(rm.Q-1):
                 for p in range(rm.P):
-                    tot += (A[q][p][m]-A[q][p][rm.degree])  * (A[q][p][n]-A[q][p][rm.degree])
+                    tot += (A[q][p][m]-A[q][p][rm.degree])  + (A[q][p][n]-A[q][p][rm.degree])
             L_n.append(tot)
 ```
 Where A[q][p][m] = M_{p,q}**m - R_{q,q+1} * M_{p,q+1} ** m. 
