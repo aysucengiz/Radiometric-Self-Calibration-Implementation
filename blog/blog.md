@@ -16,7 +16,7 @@ The tonemapped photo and the response curve I got from bracket for my exposure s
 Sadly I could not perfect my implementation so the result from there is not as reliable.
 
 # Implementation
-I chose Python because c++ requires memory handling which can cause very annoying errors. Trying to speed up Pyhton proved to be as annoying. I also could not implement skipping vignett and motioned pixels. 
+I chose Python because c++ requires memory handling which can cause very annoying errors. Trying to speed up Python proved to be as annoying. I also could not implement skipping vignett and motioned pixels. 
 
 ## Part 1: Understanding the Algorithm
 During this process, I started with manual loops to understand the idea of the general algorithm. The paper, though it seems complete did overlook many parts. For example, the epsilon that is required to determine convergence was left undetermined. 
@@ -24,6 +24,13 @@ During this process, I started with manual loops to understand the idea of the g
 Everything is defined under a class to avoid constant parameter passing.
 
 ### Main loop
+The idea is as follows:
+1. STart with degree = 1.
+2. Compute coefficients
+3. Re-estimate ratios
+4. Check if ratios converged, if not return to 1.
+5. If converged, increment the degree and return to 1 until degree is in its max value
+6. Compare the errors and choose the coefficient list with the smallest error.
 
 ˋˋˋ    def response_function(rm):
         rm.errors = [float('inf') for _ in range(LIMIT_F+1)]
@@ -50,6 +57,12 @@ Everything is defined under a class to avoid constant parameter passing.
             print(f"Error: {rm.errors[rm.degree]}.\n Coeffs: {rm.coeff_final[rm.degree]}")
         rm.final_degree = rm.choose_best()
         ˋˋˋ
+### Coefficient Computation
+This part is essentially about constructing two matrices:
+ˋˋˋ
+L C = R
+ˋˋˋ
+where $c_i$ is the elemt of C for $1 < i < n-1$. I omitted 0th and nth coefficients. 0, because I wanted it to start from 0 (after several tests) and 1 because I set $f(1)= 1$ as the paper suggested.  
 
 ### Choosing the Best parameter
 This function is quite simple. I compare the precomputed errors and choose the smallest.
